@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { GroupsModule } from './groups/groups.module';
 
 @Module({
   imports: [
@@ -21,10 +22,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         username: configService.get<string>('DB_USER'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        entities: [],
+        autoLoadEntities: true,
         synchronize: true,
       }),
     }),
+
+    GroupsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
