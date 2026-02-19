@@ -83,7 +83,7 @@ To run this project, you will need to set up your enviroment variavles.
 1. Copy the template file:
 
 ```bash
-    cp .env.template .env
+cp .env.template .env
 ```
 (Or manually create `.env` and copy the contents of `.env.template` into it)
 

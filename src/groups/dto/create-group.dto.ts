@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength, IsOptional } from "class-validator";
+import { IsString, IsNotEmpty, MinLength, IsOptional, IsBoolean } from "class-validator";
 
 export class CreateGroupDto {
     @IsString()
@@ -9,4 +9,8 @@ export class CreateGroupDto {
     @IsString()
     @IsOptional()
     description?: string;
+
+    @IsBoolean()
+    @IsOptional()
+    isActive?: boolean;
 }

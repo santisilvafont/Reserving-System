@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { User } from 'src/users/entities/user.entity';
+import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'groups' })
 export class Group {
@@ -13,4 +14,7 @@ export class Group {
 
   @Column('bool', { name: 'gru_isActive', default: true })
   isActive: boolean;
+
+  @ManyToMany(() => User, (user) => user.groups)
+  users:User[];
 }

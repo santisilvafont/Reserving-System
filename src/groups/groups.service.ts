@@ -12,7 +12,7 @@ export class GroupsService {
     private readonly groupRepository: Repository<Group>,
   ) {}
 
-  async create(createGroupDto: CreateGroupDto) {
+  async create(createGroupDto: CreateGroupDto): Promise<Group> {
     try {
       const group = this.groupRepository.create(createGroupDto);
       
@@ -26,11 +26,11 @@ export class GroupsService {
     }
   }
 
-  findAll() {
+  findAll(): Promise<Group[]> {
     return this.groupRepository.find();
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<Group> {
     const group = await this.groupRepository.findOneBy({ id });
 
     if (!group) {
@@ -40,7 +40,7 @@ export class GroupsService {
     return group;
   }
 
-  async update(id: string, updateGroupDto: UpdateGroupDto) {
+  async update(id: string, updateGroupDto: UpdateGroupDto): Promise<Group> {
     const group = await this.groupRepository.preload({
       id: id,
       ...updateGroupDto,
@@ -53,7 +53,7 @@ export class GroupsService {
     return this.groupRepository.save(group);
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<Group> {
     const group = await this.findOne(id);
     return this.groupRepository.remove(group);
   }

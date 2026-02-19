@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GroupsModule } from './groups/groups.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { GroupsModule } from './groups/groups.module';
     }),
 
     GroupsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
