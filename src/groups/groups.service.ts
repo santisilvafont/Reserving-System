@@ -34,7 +34,7 @@ export class GroupsService {
     const group = await this.groupRepository.findOneBy({ id });
 
     if (!group) {
-      throw new NotFoundException(`Group with ID ${id} not found.`);
+      throw new NotFoundException(`Group not found.`);
     }
 
     return group;
@@ -47,14 +47,17 @@ export class GroupsService {
     });
 
     if (!group) {
-      throw new NotFoundException(`Group with ID ${id} not found.`);
+      throw new NotFoundException(`Group not found.`);
     }
 
     return this.groupRepository.save(group);
   }
 
-  async remove(id: string): Promise<Group> {
-    const group = await this.findOne(id);
-    return this.groupRepository.remove(group);
+  async remove(id: string): Promise<void> {
+    const result = await this.groupRepository.delete(id);
+    
+    if (result.affected === 0) {
+      throw new NotFoundException(`Group not found.`);
+    }
   }
 }

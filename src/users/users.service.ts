@@ -36,7 +36,7 @@ export class UsersService {
     const user = await this.userRepository.findOneBy({ id }); 
     
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found.`);
+      throw new NotFoundException(`User not found.`);
     }
     return user;
   }
@@ -48,7 +48,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found.`);
+      throw new NotFoundException(`User not found.`);
     }
 
     if (updateUserDto.password) {
@@ -58,12 +58,15 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  async remove(id: string): Promise<User> {
-    const user = await this.findOne(id);
-    return this.userRepository.remove(user);
+  async remove(id: string): Promise<void> {
+    const result = await this.userRepository.delete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`User not found.`);
+    }
   }
 
-  async addGroupToUser(userId: string, groupId: string) {
+  async addGroupToUser(userId: string, groupId: string): Promise<{ message: string }> {
     try {
       await this.userRepository.createQueryBuilder().relation(User, 'groups').of(userId).add(groupId);
       
@@ -73,13 +76,13 @@ export class UsersService {
     }
   }
 
-  async removeGroupFromUser(userId: string, groupId: string) {
+  async removeGroupFromUser(userId: string, groupId: string): Promise<{ message: string }> {
     try {
       await this.userRepository.createQueryBuilder().relation(User, 'groups').of(userId).remove(groupId);
       
       return { message: `User successfully removed from the group.` };
     } catch (error) {
-      throw new BadRequestException('Verify that both IDs exist or that the user is not already in the group.');
+      throw new BadRequestException('Verify that both IDs exist or that the user is not already out of the group.');
     }
   }
 }
