@@ -2,6 +2,7 @@ import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, Jo
 import { User } from '../../users/entities/user.entity';
 import { Group } from '../../groups/entities/group.entity';
 import { Hall } from '../../halls/entities/hall.entity';
+import { ReservationState } from '../enums/reservation-state-enum';
 
 @Entity({ name: 'reservations' })
 export class Reservation {
@@ -26,8 +27,13 @@ export class Reservation {
   @Column('text', { name: 'res_rejectionreason', nullable: true })
   rejectionReason: string;
 
-  @Column('text', { name: 'res_state', default: 'pending' })
-  state: string;
+  @Column({ 
+    type: 'enum',
+    enum: ReservationState,
+    default: ReservationState.PENDING,
+    name: 'res_state',
+  })
+  state: ReservationState;
 
   @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: 'usr_id' })

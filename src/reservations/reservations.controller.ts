@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
@@ -35,4 +35,20 @@ export class ReservationsController {
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.reservationsService.findOne(id);
   }
+
+  @Patch(':id/cancel')
+  cancel(@Param('id', ParseUUIDPipe) id: string){
+    return this.reservationsService.cancel(id);
+  }
+
+  @Patch(':id/approve')
+  approve(@Param('id', ParseUUIDPipe) id: string){
+    return this.reservationsService.approve(id);
+  }
+
+  @Patch(':id/reject')
+  reject(@Param('id', ParseUUIDPipe) id: string, @Body('reason') reason: string){
+    return this.reservationsService.reject(id, reason);
+  }
+  
 }
