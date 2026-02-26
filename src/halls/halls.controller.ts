@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { HallsService } from './halls.service';
 import { CreateHallDto } from './dto/create-hall.dto';
 import { UpdateHallDto } from './dto/update-hall.dto';
+import { AuthGuard } from '@nestjs/passport';
+
+@UseGuards(AuthGuard('jwt'))
 
 @Controller('halls')
 export class HallsController {

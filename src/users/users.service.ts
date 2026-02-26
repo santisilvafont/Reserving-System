@@ -13,20 +13,22 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
     ){}
   
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    try {
-      const user = this.userRepository.create(createUserDto);
+    async create(createUserDto: CreateUserDto): Promise<User> {
+      try {
+        const user = this.userRepository.create(createUserDto);
 
-      return await this.userRepository.save(user);
+        return await this.userRepository.save(user);
 
-    } catch (error) {
-      if (error.code === '23505') {
-        throw new BadRequestException(`The user with the email ${createUserDto.email} already exists.`);
+      } catch (error) {
+        if (error.code === '23505') {
+
+          throw new BadRequestException(`The user with the email ${createUserDto.email} already exists.`);
+          
+        }
+      
+        throw error;
       }
-      throw error;
     }
-
-  }
 
   findAll(): Promise<User[]> {
     return this.userRepository.find()
@@ -64,6 +66,10 @@ export class UsersService {
     if (result.affected === 0) {
       throw new NotFoundException(`User not found.`);
     }
+  }
+
+  async findOneByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email }});
   }
 
   async addGroupToUser(userId: string, groupId: string): Promise<{ message: string }> {

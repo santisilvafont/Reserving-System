@@ -1,5 +1,6 @@
 import { Group } from 'src/groups/entities/group.entity';
-import { Entity, Column, PrimaryGeneratedColumn, ManyToMany, JoinTable, BeforeInsert, BeforeUpdate } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToMany, JoinTable, BeforeInsert} from 'typeorm';
+import { Exclude } from 'class-transformer';
 import * as bcrypt from 'bcrypt';
 
 @Entity({ name: 'users' })
@@ -14,6 +15,7 @@ export class User {
     email: string;
 
     @Column("text", { name: 'usr_password' })
+    @Exclude()
     password: string;
 
     @Column("bool", { name: 'usr_isadmin', default: false })

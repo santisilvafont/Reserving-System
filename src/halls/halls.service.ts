@@ -12,11 +12,11 @@ export class HallsService {
     private readonly hallRepository: Repository<Hall>,
   ) {}
 
-  create(createHallDto: CreateHallDto): Promise<Hall> {
+  async create(createHallDto: CreateHallDto): Promise<Hall> {
     try {
       const hall = this.hallRepository.create(createHallDto);
       
-      return this.hallRepository.save(hall);
+      return await this.hallRepository.save(hall);
 
     } catch (error) {
       if (error.code === '23505') {

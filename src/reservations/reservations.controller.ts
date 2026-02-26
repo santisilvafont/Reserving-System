@@ -1,6 +1,9 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { AuthGuard } from '@nestjs/passport';
+
+@UseGuards(AuthGuard('jwt'))
 
 @Controller('reservations')
 export class ReservationsController {

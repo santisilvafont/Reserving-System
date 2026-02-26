@@ -7,6 +7,7 @@ import { GroupsModule } from './groups/groups.module';
 import { UsersModule } from './users/users.module';
 import { HallsModule } from './halls/halls.module';
 import { ReservationsModule } from './reservations/reservations.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ReservationsModule } from './reservations/reservations.module';
     UsersModule,
     HallsModule,
     ReservationsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
