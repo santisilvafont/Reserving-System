@@ -17,8 +17,4 @@ export class CreateUserDto {
     @MinLength(8, {message: 'The password must be at least 8 characters long'})
     @MaxLength(20, {message: 'The password must be at most 20 characters long'})
     password: string;
-
-    @IsBoolean()
-    @IsOptional()
-    isAdmin?: boolean;
 }

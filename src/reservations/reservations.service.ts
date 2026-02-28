@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationState } from './enums/reservation-state-enum';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class ReservationsService {
@@ -12,14 +13,14 @@ export class ReservationsService {
     private readonly reservationRepository: Repository<Reservation>,
   ) {}
 
-  async create(createReservationDto: CreateReservationDto): Promise<Reservation> {
+  async create(createReservationDto: CreateReservationDto, userId: string): Promise<Reservation> {
     try {
       const reservation = this.reservationRepository.create({
         startTime: createReservationDto.startTime,
         endTime: createReservationDto.endTime,
         purpose: createReservationDto.purpose,
         applicationNotes: createReservationDto.applicationNotes,
-        user: { id: createReservationDto.userId },
+        user: { id: userId },
         group: { id: createReservationDto.groupId },
         hall: { id: createReservationDto.hallId },
       });
@@ -33,55 +34,92 @@ export class ReservationsService {
     }
   }
 
-  findAll(): Promise<Reservation[]> {
-    return this.reservationRepository.find();
+  findAll(currentUser: User): Promise<Reservation[]> {
+    const whereClause = currentUser.isAdmin ? {} : { state: ReservationState.APPROVED };
+
+    return this.reservationRepository.find({
+      where: whereClause,
+      order: { startTime: 'DESC' },
+    });
   }
 
-  async findOne(id: string): Promise<Reservation> {
+  async findOne(id: string, currentUser?: User): Promise<Reservation> {
     const reservation = await this.reservationRepository.findOne({ where: { id } });
+
     if (!reservation) {
       throw new NotFoundException(`Reservation not found.`);
     }
+
+    if (currentUser) {
+      if (reservation.user.id !== currentUser.id && !currentUser.isAdmin) {
+        throw new ForbiddenException('You are not allowed to view this reservation.');
+      }
+    }
+    
     return reservation;
   }
-  async findByUser(userId: string): Promise<Reservation[]> {
+
+  async findByUser(targetUserId: string, currentUser: User): Promise<Reservation[]> {
+    if (targetUserId !== currentUser.id && !currentUser.isAdmin) {
+      throw new ForbiddenException(`You can only view your own reservations.`);
+    }
+
     const reservations = await this.reservationRepository.find({
-      where: { user: { id: userId } },
+      where: { user: { id: targetUserId } },
       order: { startTime: 'DESC' },
     });
 
     if (reservations.length === 0) {
-      throw new NotFoundException(`Reservation not found.`);
+      throw new NotFoundException(`Reservations not found.`);
     }
+
     return reservations;
   }
 
-  async findByGroup(groupId: string): Promise<Reservation[]> {
+  async findByGroup(groupId: string, currentUser: User): Promise<Reservation[]> {
+    const whereClause: any = {
+      group: { id: groupId }
+    }
+
+    if (!currentUser.isAdmin) {
+      whereClause.state = ReservationState.APPROVED;
+    }
+
     const reservations = await this.reservationRepository.find({
-      where: { group: { id: groupId } },
+      where: whereClause,
       order: { startTime: 'DESC' },
     });
 
     if (reservations.length === 0) {
-      throw new NotFoundException(`Reservation not found.`);
+      throw new NotFoundException(`Reservations not found.`);
     }
     return reservations;
   }
   
-  async findByHall(hallId: string): Promise<Reservation[]> {
+  async findByHall(hallId: string, currentUser: User): Promise<Reservation[]> {
+    const whereClause: any = { hall: { id: hallId } };
+
+    if (!currentUser.isAdmin) {
+      whereClause.state = ReservationState.APPROVED;
+    }
+
     const reservations = await this.reservationRepository.find({
-      where: { hall: { id: hallId } },
-      order: { startTime: 'DESC' },
+      where: whereClause
     });
+
     if (reservations.length === 0) {
-      throw new NotFoundException(`Reservation not found.`);
+      throw new NotFoundException(`Reservations not found.`);
     }
     return reservations;
   }
 
-  async cancel(id: string): Promise<Reservation> {
+  async cancel(reservationId: string, userId: string): Promise<Reservation> {
 
-    const reservation = await this.findOne(id)
+    const reservation = await this.findOne(reservationId)
+
+    if (reservation.user.id !== userId) {
+      throw new ForbiddenException(`You can only cancel your own reservations.`);
+    }
 
     if (
       reservation.state !== ReservationState.PENDING &&
