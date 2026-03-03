@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseUUIDPipe, Patch, UseGuards, Query } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -6,6 +6,8 @@ import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { User } from 'src/users/entities/user.entity';
+import { GetReservationsDto } from './dto/get-reservations.dto';
+import { query } from 'express';
 
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('reservations')
@@ -21,32 +23,38 @@ export class ReservationsController {
   }
 
   @Get()
-  findAll(@GetUser() user: User) {
-    return this.reservationsService.findAll(user);
+  findAll(
+    @GetUser() user: User,
+    @Query() queryDto: GetReservationsDto
+  ) {
+    return this.reservationsService.findAll(user, queryDto);
   }
 
   @Get('user/:userId')
   findByUser(
     @Param('userId', ParseUUIDPipe) targetUserId: string, 
-    @GetUser() user: User
+    @GetUser() user: User,
+    @Query() queryDto: GetReservationsDto
   ) {
-    return this.reservationsService.findByUser(targetUserId, user);
+    return this.reservationsService.findByUser(targetUserId, user, queryDto);
   }
   
   @Get('group/:groupId')
   findByGroup(
     @Param('groupId', ParseUUIDPipe) groupId: string,
-    @GetUser() user: User
+    @GetUser() user: User,
+    @Query() queryDto: GetReservationsDto
   ) {
-    return this.reservationsService.findByGroup(groupId, user);
+    return this.reservationsService.findByGroup(groupId, user, queryDto);
   }
   
   @Get('hall/:hallId')
   findByHall(
     @Param('hallId', ParseUUIDPipe) hallId: string,
-    @GetUser() user: User
+    @GetUser() user: User,
+    @Query() queryDto: GetReservationsDto
   ) {
-    return this.reservationsService.findByHall(hallId, user);
+    return this.reservationsService.findByHall(hallId, user, queryDto);
   }
   
   @Get(':id')

@@ -1,10 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationState } from './enums/reservation-state-enum';
 import { User } from 'src/users/entities/user.entity';
+import { GetReservationsDto } from './dto/get-reservations.dto';
 
 @Injectable()
 export class ReservationsService {
@@ -47,8 +48,16 @@ export class ReservationsService {
     }
   }
 
-  findAll(currentUser: User): Promise<Reservation[]> {
-    const whereClause = currentUser.isAdmin ? {} : { state: ReservationState.APPROVED };
+  findAll(currentUser: User, queryDto?: GetReservationsDto): Promise<Reservation[]> {
+    const whereClause: any = currentUser.isAdmin ? {} : { state: ReservationState.APPROVED };
+
+    if (queryDto?.startDate && queryDto?.endDate) {
+      whereClause.startTime = Between(queryDto.startDate, queryDto.endDate);
+    } else if (queryDto?.startDate) {
+      whereClause.startTime = MoreThanOrEqual(queryDto.startDate);
+    } else if (queryDto?.endDate) {
+      whereClause.startTime = LessThanOrEqual(queryDto.endDate);
+    }
 
     return this.reservationRepository.find({
       where: whereClause,
@@ -72,9 +81,19 @@ export class ReservationsService {
     return reservation;
   }
 
-  async findByUser(targetUserId: string, currentUser: User): Promise<Reservation[]> {
+  async findByUser(targetUserId: string, currentUser: User, queryDto: GetReservationsDto): Promise<Reservation[]> {
     if (targetUserId !== currentUser.id && !currentUser.isAdmin) {
       throw new ForbiddenException(`You can only view your own reservations.`);
+    }
+
+    const whereClause: any = { user: { id: targetUserId } };
+
+    if (queryDto?.startDate && queryDto?.endDate) {
+      whereClause.startTime = Between(queryDto.startDate, queryDto.endDate);
+    } else if (queryDto?.startDate) {
+      whereClause.startTime = MoreThanOrEqual(queryDto.startDate);
+    } else if (queryDto?.endDate) {
+      whereClause.startTime = LessThanOrEqual(queryDto.endDate);
     }
 
     const reservations = await this.reservationRepository.find({
@@ -89,13 +108,21 @@ export class ReservationsService {
     return reservations;
   }
 
-  async findByGroup(groupId: string, currentUser: User): Promise<Reservation[]> {
+  async findByGroup(groupId: string, currentUser: User, queryDto?: GetReservationsDto): Promise<Reservation[]> {
     const whereClause: any = {
       group: { id: groupId }
     }
 
     if (!currentUser.isAdmin) {
       whereClause.state = ReservationState.APPROVED;
+    }
+
+    if (queryDto?.startDate && queryDto?.endDate) {
+      whereClause.startTime = Between(queryDto.startDate, queryDto.endDate);
+    } else if (queryDto?.startDate) {
+      whereClause.startTime = MoreThanOrEqual(queryDto.startDate);
+    } else if (queryDto?.endDate) {
+      whereClause.startTime = LessThanOrEqual(queryDto.endDate);
     }
 
     const reservations = await this.reservationRepository.find({
@@ -109,20 +136,30 @@ export class ReservationsService {
     return reservations;
   }
   
-  async findByHall(hallId: string, currentUser: User): Promise<Reservation[]> {
+  async findByHall(hallId: string, currentUser: User, queryDto?: GetReservationsDto): Promise<Reservation[]> {
     const whereClause: any = { hall: { id: hallId } };
-
+    
     if (!currentUser.isAdmin) {
       whereClause.state = ReservationState.APPROVED;
     }
 
-    const reservations = await this.reservationRepository.find({
-      where: whereClause
+    if (queryDto?.startDate && queryDto?.endDate) {
+      whereClause.startTime = Between(queryDto.startDate, queryDto.endDate);
+    } else if (queryDto?.startDate) {
+      whereClause.startTime = MoreThanOrEqual(queryDto.startDate);
+    } else if (queryDto?.endDate) {
+      whereClause.startTime = LessThanOrEqual(queryDto.endDate);
+    }
+
+    const reservations = await this.reservationRepository.find({ 
+      where: whereClause,
+      order: { startTime: 'DESC' }
     });
 
     if (reservations.length === 0) {
-      throw new NotFoundException(`Reservations not found.`);
+      throw new NotFoundException(`No reservations found for this hall in the given range.`);
     }
+    
     return reservations;
   }
 
