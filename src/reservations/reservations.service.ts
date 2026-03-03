@@ -14,6 +14,19 @@ export class ReservationsService {
   ) {}
 
   async create(createReservationDto: CreateReservationDto, userId: string): Promise<Reservation> {
+    const start = new Date(createReservationDto.startTime);
+    const end = new Date(createReservationDto.endTime);
+
+    if (start >= end) {
+      throw new BadRequestException('The start time must be strictly before the end time.');
+    }
+
+    const hasCollision = await this.checkCollision(createReservationDto.hallId, start, end);
+
+    if (hasCollision) {
+      throw new BadRequestException('The hall is already booked and approved for the selected time slot.');
+    }
+
     try {
       const reservation = this.reservationRepository.create({
         startTime: createReservationDto.startTime,
@@ -28,7 +41,7 @@ export class ReservationsService {
       return await this.reservationRepository.save(reservation);
     } catch (error) {
       if (error.code === '23503') {
-        throw new BadRequestException('The user, group, or hall specified does not exist.');
+        throw new BadRequestException('The group or hall specified does not exist.');
       }
       throw error;
     }
@@ -141,6 +154,12 @@ export class ReservationsService {
       throw new BadRequestException(`Cannot approve a reservation that is currently ${reservation.state}.`);
     }
 
+    const hasCollision = await this.checkCollision(reservation.hall.id, reservation.startTime, reservation.endTime, reservation.id);
+
+    if (hasCollision) {
+      throw new BadRequestException('Cannot approve. Another approved reservation is already occupying this hall at this time.');
+    }
+
     reservation.state = ReservationState.APPROVED;
     return this.reservationRepository.save(reservation);
 
@@ -161,5 +180,20 @@ export class ReservationsService {
     reservation.state = ReservationState.REJECTED;
     reservation.rejectionReason = rejectionReason;
     return this.reservationRepository.save(reservation);
+  }
+
+  private async checkCollision(hallId: string, startTime: Date, endTime: Date, excludeReservationId?: string): Promise<boolean> {
+    const query = this.reservationRepository.createQueryBuilder('reservation')
+      .where('reservation.hall.id = :hallId', { hallId })
+      .andWhere('reservation.state = :state', { state: ReservationState.APPROVED })
+      .andWhere('reservation.startTime < :endTime', { endTime })
+      .andWhere('reservation.endTime > :startTime', { startTime });
+
+    if (excludeReservationId) {
+      query.andWhere('reservation.id != :excludeId', { excludeId: excludeReservationId });
+    }
+
+    const count = await query.getCount();
+    return count > 0;
   }
 }
