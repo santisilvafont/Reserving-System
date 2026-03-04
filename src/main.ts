@@ -1,6 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 ValidationPipe;
 
 async function bootstrap() {
@@ -17,6 +18,16 @@ async function bootstrap() {
       whitelist: true,
     })
   );
+
+  const config = new DocumentBuilder()
+    .setTitle('API de Reservas - Universidad')
+    .setDescription('Documentación oficial de los endpoints para el sistema de reservas y gestión de salones.')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+    
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(app.get(Reflector))

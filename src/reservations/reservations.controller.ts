@@ -7,8 +7,9 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { User } from 'src/users/entities/user.entity';
 import { GetReservationsDto } from './dto/get-reservations.dto';
-import { query } from 'express';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('reservations')
 export class ReservationsController {
