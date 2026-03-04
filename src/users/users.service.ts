@@ -146,4 +146,10 @@ export class UsersService {
     
     return this.userRepository.save(user);
   }
+
+  async updatePasswordFromReset(userId: string, newPasswordPlaintText: string): Promise<void> {
+    const user = await this.findOne(userId);
+    user.password = await bcrypt.hash(newPasswordPlaintText, 10);
+    await this.userRepository.save(user);
+  }
 }
