@@ -21,6 +21,12 @@ export class User {
     @Column("bool", { name: 'usr_isadmin', default: false })
     isAdmin: boolean;
 
+    @Column("text", { name: 'usr_description', nullable: true })
+    description: string;
+
+    @Column("bool", { name: 'usr_isactive', default: true })
+    isActive: boolean;
+
     @BeforeInsert()
     async hashPassword() {
         if (!this.password) return;

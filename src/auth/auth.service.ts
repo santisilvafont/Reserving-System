@@ -47,6 +47,10 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials');
         }
 
+        if (!user.isActive) {
+          throw new UnauthorizedException('This account has been disabled. Contact the administrator.')
+        }
+
         return this.generateToken(user);
     }
 

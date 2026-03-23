@@ -73,7 +73,17 @@ export class UsersController {
   async toggleAdminRole(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('isAdmin') isAdmin: boolean,
+    @GetUser() currentUser: User,
   ) {
-    return this.usersService.toggleAdminRole(id, isAdmin);
+    return this.usersService.toggleAdminRole(id, isAdmin, currentUser);
+  }
+
+  @Roles('admin')
+  @Patch(':id/status')
+  async toggleActiveStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.usersService.toggleActiveStatus(id, isActive);
   }
 }

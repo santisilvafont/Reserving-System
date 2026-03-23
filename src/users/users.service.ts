@@ -1,17 +1,23 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
+  private readonly superAdminEmail: string;
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    ){}
+    private configService: ConfigService,
+    ) {
+      this.superAdminEmail = this.configService.get<string>('SUPER_ADMIN_EMAIL') || 'admin@gmail.com';  
+    }
   
     async create(createUserDto: CreateUserDto): Promise<User> {
       try {
@@ -54,9 +60,13 @@ export class UsersService {
 
     const user = await this.findOne(targetUserId);
     
-        if (!user) {
-          throw new NotFoundException(`User not found.`);
-        }
+    if (!user) {
+      throw new NotFoundException(`User not found.`);
+    }
+
+    if (user.email === this.superAdminEmail && currentUser.email !== this.superAdminEmail) {
+      throw new ForbiddenException('You do not have permission to modify the Super Administrator.')
+    }
 
     const { currentPassword, newPassword, confirmPassword, ...otherData } = updateUserDto;
     const isChangingPassword = currentPassword || newPassword || confirmPassword;
@@ -90,11 +100,16 @@ export class UsersService {
       }
     }
 
-    if (otherData.name) {
-      user.name = otherData.name;
-    }
+    Object.assign(user, otherData);
 
-    return this.userRepository.save(user);
+    try {
+      return await this.userRepository.save(user);
+    } catch (err) {
+      if (err.code === '23505') {
+        throw new BadRequestException('This email is already registered yo another user.')
+      }
+      throw new InternalServerErrorException('Error updating user.')
+    }
   }
 
   async remove(targetUserId: string, currentUser: User): Promise<void> {
@@ -139,11 +154,30 @@ export class UsersService {
     }
   }
 
-  async toggleAdminRole(id: string, isAdmin: boolean): Promise<User> {
+  async toggleAdminRole(id: string, isAdmin: boolean, currentUser: User): Promise<User> {
+    if (currentUser.email !== this.superAdminEmail) {
+      throw new ForbiddenException('Only the Super Administrator can change user roles.')
+    }
+    
     const user = await this.findOne(id);
+
+    if (user.email === this.superAdminEmail) {
+      throw new ForbiddenException('The Super Administrator role cannot be modified.');
+    }
     
     user.isAdmin = isAdmin;
-    
+    return this.userRepository.save(user);
+  }
+
+  async toggleActiveStatus(id: string, isActive: boolean): Promise<User> {
+    const user = await this.findOne(id);
+
+    if (user.email === this.superAdminEmail && !isActive) {
+      throw new ForbiddenException('The Super Administrator cannot be disabled.');
+    }
+
+    user.isActive = isActive;
+
     return this.userRepository.save(user);
   }
 

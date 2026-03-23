@@ -1,15 +1,17 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { Transform } from "class-transformer";
+import { IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from "class-validator";
 
 export class CreateUserDto {
     @IsString()
     @IsNotEmpty()
-    @MinLength(2, {message: 'The name must be at least 2 characters long'})
+    @MinLength(3, {message: 'The name must be at least 2 characters long'})
     @MaxLength(50, {message: 'The name must be at most 50 characters long'})
     name: string;
 
     @IsString()
     @IsEmail({}, { message: 'The email must have a valid format'})
     @IsNotEmpty()
+    @Transform(({ value }) => value?.toLowerCase().trim())
     email: string;
 
     @IsString()
