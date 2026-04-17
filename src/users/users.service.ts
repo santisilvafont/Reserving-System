@@ -1,0 +1,218 @@
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
+import { User } from './entities/user.entity';
+
+@Injectable()
+export class UsersService {
+  private readonly superAdminEmail: string;
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private configService: ConfigService,
+    ) {
+      this.superAdminEmail = this.configService.get<string>('SUPER_ADMIN_EMAIL') || 'admin@gmail.com';  
+    }
+  
+    async create(createUserDto: CreateUserDto): Promise<User> {
+      try {
+        const user = this.userRepository.create(createUserDto);
+
+        return await this.userRepository.save(user);
+
+      } catch (error) {
+        if (error.code === '23505') {
+
+          throw new BadRequestException(`The user with the email ${createUserDto.email} already exists.`);
+          
+        }
+      
+        throw error;
+      }
+    }
+
+  findAll(): Promise<User[]> {
+    return this.userRepository.find()
+  }
+  
+  async findOne(id: string): Promise<User> {
+    const user = await this.userRepository.findOneBy({ id }); 
+    
+    if (!user) {
+      throw new NotFoundException(`User not found.`);
+    }
+    return user;
+  }
+
+  async findOneByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email }});
+  }
+  
+  async update(targetUserId: string, updateUserDto: UpdateUserDto, currentUser: User): Promise<User> {
+    if (targetUserId !== currentUser.id && !currentUser.isAdmin) {
+      throw new ForbiddenException('You can only update your own profile.');
+    }
+
+    const user = await this.findOne(targetUserId);
+    
+    if (!user) {
+      throw new NotFoundException(`User not found.`);
+    }
+
+    if (user.email === this.superAdminEmail && currentUser.email !== this.superAdminEmail) {
+      throw new ForbiddenException('You do not have permission to modify the Super Administrator.')
+    }
+
+    if (user.email === this.superAdminEmail && updateUserDto.email && updateUserDto.email !== this.superAdminEmail) {
+      throw new BadRequestException('The Super Administrator email cannot be changed to ensure system stability.');
+    }
+
+    const { currentPassword, newPassword, confirmPassword, ...otherData } = updateUserDto;
+    const isChangingPassword = currentPassword || newPassword || confirmPassword;
+
+    if (isChangingPassword) {
+      if (targetUserId === currentUser.id) {
+        if (!currentPassword || !newPassword || !confirmPassword) {
+          throw new BadRequestException('You must provide currentPassword, newPassword, and confirmPassword.');
+        }
+        if (newPassword !== confirmPassword) {
+          throw new BadRequestException('The new passwords do not match.');
+        }
+
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+        if (!isPasswordValid) {
+          throw new BadRequestException('Incorrect current password.');
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+
+      } else {
+        if (!newPassword || !confirmPassword) {
+          throw new BadRequestException('Admin must provide newPassword and confirmPassword to force change.');
+        }
+        if (newPassword !== confirmPassword) {
+          throw new BadRequestException('The new passwords do not match.');
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+      }
+    }
+
+    Object.assign(user, otherData);
+
+    try {
+      return await this.userRepository.save(user);
+    } catch (err) {
+      if (err.code === '23505') {
+        throw new BadRequestException('This email is already registered yo another user.')
+      }
+      throw new InternalServerErrorException('Error updating user.')
+    }
+  }
+
+  async remove(targetUserId: string, currentUser: User): Promise<void> {
+    if (targetUserId !== currentUser.id && !currentUser.isAdmin) {
+      throw new ForbiddenException('You can only delete your own account.');
+    }
+    const result = await this.userRepository.delete(targetUserId);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`User not found.`);
+    }
+  }
+
+
+  async addGroupToUser(targetUserId: string, groupId: string, currentUser: User): Promise<{ message: string }> {
+    if (targetUserId !== currentUser.id && !currentUser.isAdmin) {
+      throw new ForbiddenException('You can only manage your own groups.');
+    }
+
+    try {
+      await this.userRepository.createQueryBuilder().relation(User, 'groups').of(targetUserId).add(groupId);
+
+      return { message: `User successfully affiliated with the group` };
+
+    } catch (error) {
+      throw new BadRequestException('Verify that the group exists or that the user is not already in the group.');
+    }
+  }
+
+  async removeGroupFromUser(targetUserId: string, groupId: string, currentUser: User): Promise<{ message: string }> {
+    if (targetUserId !== currentUser.id && !currentUser.isAdmin) {
+      throw new ForbiddenException('You can only manage your own groups.');
+    }
+    
+    try {
+      await this.userRepository.createQueryBuilder().relation(User, 'groups').of(targetUserId).remove(groupId);
+
+      return { message: `User successfully removed from the group.` };
+      
+    } catch (error) {
+      throw new BadRequestException('Verify that the group exists or that the user is not already out of the group.');
+    }
+  }
+
+  async toggleAdminRole(id: string, isAdmin: boolean, currentUser: User): Promise<User> {
+    if (currentUser.email !== this.superAdminEmail) {
+      throw new ForbiddenException('Only the Super Administrator can change user roles.')
+    }
+    
+    const user = await this.findOne(id);
+
+    if (user.email === this.superAdminEmail) {
+      throw new ForbiddenException('The Super Administrator role cannot be modified.');
+    }
+    
+    user.isAdmin = isAdmin;
+    return this.userRepository.save(user);
+  }
+
+  async toggleActiveStatus(id: string, isActive: boolean): Promise<User> {
+    const user = await this.findOne(id);
+
+    if (user.email === this.superAdminEmail && !isActive) {
+      throw new ForbiddenException('The Super Administrator cannot be disabled.');
+    }
+
+    user.isActive = isActive;
+
+    return this.userRepository.save(user);
+  }
+
+  async updatePasswordFromReset(userId: string, newPasswordPlaintText: string): Promise<void> {
+    const user = await this.findOne(userId);
+    user.password = await bcrypt.hash(newPasswordPlaintText, 10);
+    await this.userRepository.save(user);
+  }
+
+  async onApplicationBootstrap() {
+    const adminEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@gmail.com';
+    const adminPassword = process.env.SUPER_ADMIN_PASSWORD || 'Admin123!';
+
+    const existingAdmin = await this.userRepository.findOne({ where: { email: adminEmail } });
+
+    if (!existingAdmin) {
+      this.logger.log(`No super admin found. Creating default admin: ${adminEmail}`);
+      
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      
+      const adminUser = this.userRepository.create({
+        name: 'System Admin',
+        email: adminEmail,
+        password: hashedPassword,
+        isAdmin: true,
+        isActive: true,
+      });
+
+      await this.userRepository.save(adminUser);
+      this.logger.log('✅ Default Super Admin created successfully!');
+    }
+  }
+}
