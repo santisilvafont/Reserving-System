@@ -1,13 +1,20 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, IsDate } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsAfter } from '../decorators/is-after.decorator';
+import { IsFutureDate } from '../decorators/is-future.decorator';
 
 export class CreateReservationDto {
-  @IsDateString()
+  @IsDate()
   @IsNotEmpty()
-  startTime: string;
+  @Type(() => Date)
+  @IsFutureDate({ message: 'Start time cannot be in the past.' })
+  startTime: Date;
 
-  @IsDateString()
+  @IsDate()
   @IsNotEmpty()
-  endTime: string;
+  @Type(() => Date)
+  @IsAfter('startTime', { message: 'End time cannot be before Start time.'})
+  endTime: Date;
 
   @IsString()
   @IsNotEmpty()

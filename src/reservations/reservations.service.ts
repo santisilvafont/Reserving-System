@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual, FindOptionsWhere, FindOperator } from 'typeorm';
 import { Reservation } from './entities/reservation.entity';
 import { ReservationState } from './enums/reservation-state-enum';
 import { User } from 'src/users/entities/user.entity';
@@ -49,16 +49,34 @@ export class ReservationsService {
   }
 
   findAll(currentUser: User, queryDto?: GetReservationsDto): Promise<Reservation[]> {
-    const whereClause: any = currentUser.isAdmin ? {} : { state: ReservationState.APPROVED };
-
+    let dateFilter: FindOperator<Date> | undefined;
+  
     if (queryDto?.startDate && queryDto?.endDate) {
-      whereClause.startTime = Between(queryDto.startDate, queryDto.endDate);
+      dateFilter = Between(queryDto.startDate, queryDto.endDate);
     } else if (queryDto?.startDate) {
-      whereClause.startTime = MoreThanOrEqual(queryDto.startDate);
+      dateFilter = MoreThanOrEqual(queryDto.startDate);
     } else if (queryDto?.endDate) {
-      whereClause.startTime = LessThanOrEqual(queryDto.endDate);
+      dateFilter = LessThanOrEqual(queryDto.endDate);
     }
-
+  
+    let whereClause: FindOptionsWhere<Reservation> | FindOptionsWhere<Reservation>[];
+  
+    if (currentUser.isAdmin) {
+      whereClause = dateFilter ? { startTime: dateFilter } : {};
+    } else {
+      if (dateFilter) {
+        whereClause = [
+          { state: ReservationState.APPROVED, startTime: dateFilter },
+          { user: { id: currentUser.id }, startTime: dateFilter },
+        ];
+      } else {
+        whereClause = [
+          { state: ReservationState.APPROVED },
+          { user: { id: currentUser.id } },
+        ];
+      }
+    }
+  
     return this.reservationRepository.find({
       where: whereClause,
       order: { startTime: 'DESC' },

@@ -59,8 +59,8 @@ function printBanner(
   const line = `${green}================================================================${reset}`;
 
   console.log(`${header} ${line}`);
-  console.log(`${header} 🚀 ${bold}App running at:${reset}     ${yellow}http://localhost:${port}${reset}`);
-  console.log(`${header} 🌐 ${bold}CORS enabled:${reset}            ${green}true${reset}`);
+  console.log(`${header} ${bold}App running at:${reset}     ${yellow}http://localhost:${port}${reset}`);
+  console.log(`${header} ${bold}CORS enabled:${reset}            ${green}true${reset}`);
   console.log(`${header} ${line}`);
 }
 bootstrap();

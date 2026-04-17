@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +10,7 @@ import { User } from './entities/user.entity';
 @Injectable()
 export class UsersService {
   private readonly superAdminEmail: string;
+  private readonly logger = new Logger(UsersService.name);
 
   constructor(
     @InjectRepository(User)
@@ -66,6 +67,10 @@ export class UsersService {
 
     if (user.email === this.superAdminEmail && currentUser.email !== this.superAdminEmail) {
       throw new ForbiddenException('You do not have permission to modify the Super Administrator.')
+    }
+
+    if (user.email === this.superAdminEmail && updateUserDto.email && updateUserDto.email !== this.superAdminEmail) {
+      throw new BadRequestException('The Super Administrator email cannot be changed to ensure system stability.');
     }
 
     const { currentPassword, newPassword, confirmPassword, ...otherData } = updateUserDto;
@@ -185,5 +190,29 @@ export class UsersService {
     const user = await this.findOne(userId);
     user.password = await bcrypt.hash(newPasswordPlaintText, 10);
     await this.userRepository.save(user);
+  }
+
+  async onApplicationBootstrap() {
+    const adminEmail = process.env.SUPER_ADMIN_EMAIL || 'admin@gmail.com';
+    const adminPassword = process.env.SUPER_ADMIN_PASSWORD || 'Admin123!';
+
+    const existingAdmin = await this.userRepository.findOne({ where: { email: adminEmail } });
+
+    if (!existingAdmin) {
+      this.logger.log(`No super admin found. Creating default admin: ${adminEmail}`);
+      
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      
+      const adminUser = this.userRepository.create({
+        name: 'System Admin',
+        email: adminEmail,
+        password: hashedPassword,
+        isAdmin: true,
+        isActive: true,
+      });
+
+      await this.userRepository.save(adminUser);
+      this.logger.log('✅ Default Super Admin created successfully!');
+    }
   }
 }
